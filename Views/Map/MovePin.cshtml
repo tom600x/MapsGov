@@ -1,0 +1,65 @@
+@model MapsGov.Controllers.MapLocation
+@{
+    ViewData["Title"] = "Move Pin Demo";
+    var azureMapsKey = ViewBag.AzureMapsKey as string;
+}
+
+<h2>Move the Pin Demo</h2>
+<p>Drag the pin to a new location and click "Save Location" to update it in memory.</p>
+<div id="myMap" style="height: 500px; width: 100%;"></div>
+<p>Current Location: <span id="locationDisplay">(@Model.Latitude, @Model.Longitude)</span></p>
+<button id="saveBtn" class="btn btn-success">Save Location</button>
+<div id="saveStatus"></div>
+
+<script src="https://atlas.azure.us/sdk/javascript/mapcontrol/2/atlas.min.js"></script>
+<link rel="stylesheet" href="https://atlas.azure.us/sdk/javascript/mapcontrol/2/atlas.min.css" />
+<script>
+    var map, marker, currentPosition = [@Model.Longitude, @Model.Latitude];
+    function updateDisplay(pos) {
+        document.getElementById('locationDisplay').textContent = `(${pos[1]}, ${pos[0]})`;
+    }
+    map = new atlas.Map('myMap', {
+        center: currentPosition,
+        zoom: 12,
+        authOptions: {
+            authType: 'subscriptionKey',
+            subscriptionKey: '@azureMapsKey'
+        },
+        domain: 'atlas.azure.us'
+    });
+    map.events.add('ready', function () {
+        marker = new atlas.HtmlMarker({
+            position: currentPosition,
+            draggable: true,
+            text: 'Demo Pin'
+        });
+        map.markers.add(marker);
+        map.events.add('dragend', marker, function (e) {
+            currentPosition = [e.position[0], e.position[1]];
+            updateDisplay(currentPosition);
+        });
+    });
+    document.getElementById('saveBtn').onclick = function () {
+        fetch('/Map/UpdatePin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                Name: 'Demo Pin',
+                Latitude: currentPosition[1],
+                Longitude: currentPosition[0]
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('saveStatus').textContent = 'Location saved in memory!';
+            } else {
+                document.getElementById('saveStatus').textContent = 'Failed to save location.';
+            }
+        });
+    };
+</script>
+
+<div class="text-center mt-3">
+    <a class="btn btn-secondary" href="/Map/Index">Back to Map Demo</a>
+</div>

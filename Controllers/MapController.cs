@@ -66,5 +66,29 @@ namespace MapsGov.Controllers
             ViewBag.Address = address;
             return View();
         }
+
+        // In-memory storage for demo pin location
+        private static MapLocation DemoPinLocation = new MapLocation { Name = "Demo Pin", Latitude = 47.6062, Longitude = -122.3321 };
+
+        // Show the move pin demo page
+        [HttpGet]
+        public IActionResult MovePin()
+        {
+            ViewBag.AzureMapsKey = _azureMapsKey;
+            return View(DemoPinLocation);
+        }
+
+        // Update pin location (AJAX POST)
+        [HttpPost]
+        public IActionResult UpdatePin([FromBody] MapLocation newLocation)
+        {
+            if (newLocation != null)
+            {
+                DemoPinLocation.Latitude = newLocation.Latitude;
+                DemoPinLocation.Longitude = newLocation.Longitude;
+                // Placeholder: Save to external storage here
+            }
+            return Json(new { success = true, location = DemoPinLocation });
+        }
     }
 }

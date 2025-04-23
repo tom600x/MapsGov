@@ -38,6 +38,7 @@ This project is a C# ASP.NET Core MVC (.NET 8) web application that uses Azure M
 ## Project Structure
 - `Controllers/MapController.cs`: Provides mock locations and injects the Azure Maps key into views.
 - `Views/Map/Index.cshtml`: Displays the map using the Azure Maps web control.
+- `Views/Map/MovePin.cshtml`: Demo page to move a pin on the map, save its location in memory, and demonstrate how to update pin locations interactively. The controller includes a placeholder for saving to external storage.
 - `secrets.json`: Stores your Azure Maps subscription key (local only).
 
 ## Security
@@ -46,4 +47,4 @@ This project is a C# ASP.NET Core MVC (.NET 8) web application that uses Azure M
 
 ---
 
-For more information, see the [Azure Maps documentation for US Government](https://learn.microsoft.com/en-us/azure/azure-government/documentation-government-welcome).
+For more information, see the [Azure Maps documentation for US Government](https://learn.microsoft.com/en-us/azure/azure-government/documentation-government-welcome)
