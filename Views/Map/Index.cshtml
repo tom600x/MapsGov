@@ -1,0 +1,49 @@
+@model IEnumerable<MapsGov.Controllers.MapLocation>
+@{
+    ViewData["Title"] = "Azure Maps Demo";
+    var azureMapsKey = ViewBag.AzureMapsKey as string;
+}
+
+<h2>Azure Maps Demo</h2>
+<div id="myMap" style="height: 500px; width: 100%;"></div>
+<ul>
+@foreach (var loc in Model)
+{
+    <li>@loc.Name: (@loc.Latitude, @loc.Longitude)</li>
+}
+</ul>
+
+<script src="https://atlas.azure.us/sdk/javascript/mapcontrol/2/atlas.min.js"></script>
+<link rel="stylesheet" href="https://atlas.azure.us/sdk/javascript/mapcontrol/2/atlas.min.css" />
+<script>
+    var map = new atlas.Map('myMap', {
+        center: [@Model.First().Longitude, @Model.First().Latitude],
+        zoom: 10,
+        authOptions: {
+            authType: 'subscriptionKey',
+            subscriptionKey: '@azureMapsKey'
+        },
+        // Set the Azure Government endpoint
+        domain: 'atlas.azure.us'
+    });
+    map.events.add('ready', function () {
+        var locations = [
+            @foreach (var loc in Model)
+            {
+                @: { name: '@loc.Name', coordinates: [@loc.Longitude, @loc.Latitude] },
+            }
+        ];
+        locations.forEach(function (loc) {
+            var marker = new atlas.HtmlMarker({
+                position: loc.coordinates,
+                text: loc.name
+            });
+            map.markers.add(marker);
+        });
+        });
+</script>
+
+<div class="text-center">
+    
+    <p><a class="btn btn-primary" href="/Map/Geocode">Geocode an Address</a></p>
+</div>

@@ -1,0 +1,30 @@
+@{
+    ViewData["Title"] = "Geocode Address";
+}
+<h2>Geocode Address</h2>
+<form asp-action="Geocode" method="post">
+    <div>
+        <label for="address">Address:</label>
+        <input type="text" id="address" name="address" value="@ViewBag.Address" style="width: 400px;" />
+        <button type="submit">Geocode</button>
+    </div>
+</form>
+@if (ViewBag.Error != null)
+{
+    <div style="color: red;">@ViewBag.Error</div>
+}
+@if (ViewBag.Result != null)
+{
+    <h3>Result</h3>
+    <pre>@ViewBag.Result.ToString(Newtonsoft.Json.Formatting.Indented)</pre>
+    @* Optionally, show coordinates if found *@
+    @if (ViewBag.Result["results"] != null && ViewBag.Result["results"].HasValues)
+    {
+        var pos = ViewBag.Result["results"][0]["position"];
+        if (pos != null)
+        {
+            <div><strong>Latitude:</strong> @pos["lat"]</div>
+            <div><strong>Longitude:</strong> @pos["lon"]</div>
+        }
+    }
+}
