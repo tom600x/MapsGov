@@ -16,31 +16,64 @@
 <script src="https://atlas.azure.us/sdk/javascript/mapcontrol/2/atlas.min.js"></script>
 <link rel="stylesheet" href="https://atlas.azure.us/sdk/javascript/mapcontrol/2/atlas.min.css" />
 <script>
-    var map = new atlas.Map('myMap', {
-        center: [@Model.First().Longitude, @Model.First().Latitude],
-        zoom: 10,
-        authOptions: {
-            authType: 'subscriptionKey',
-            subscriptionKey: '@azureMapsKey'
-        },
-        // Set the Azure Government endpoint
-        domain: 'atlas.azure.us'
-    });
-    map.events.add('ready', function () {
-        var locations = [
-            @foreach (var loc in Model)
-            {
-                @: { name: '@loc.Name', coordinates: [@loc.Longitude, @loc.Latitude] },
+    // Function to initialize map after we get auth options
+    async function initializeMap() {
+        try {
+            // Fetch authentication info from our endpoint
+            const response = await fetch('/api/maps/auth');
+            if (!response.ok) {
+                throw new Error('Failed to get map authentication');
             }
-        ];
-        locations.forEach(function (loc) {
-            var marker = new atlas.HtmlMarker({
-                position: loc.coordinates,
-                text: loc.name
+            
+            const authInfo = await response.json();
+            let authOptions;
+            
+            // Configure auth options based on response type
+            if (authInfo.authType === 'aad') {
+                authOptions = {
+                    authType: 'anonymous',
+                    getToken: () => Promise.resolve(authInfo.token)
+                };
+                console.log('Using AAD token authentication');
+            } else {
+                authOptions = {
+                    authType: 'subscriptionKey',
+                    subscriptionKey: authInfo.subscriptionKey
+                };
+                console.log('Using subscription key authentication');
+            }
+            
+            // Initialize the map with the acquired auth options
+            var map = new atlas.Map('myMap', {
+                center: [@Model.First().Longitude, @Model.First().Latitude],
+                zoom: 10,
+                authOptions: authOptions,
+                domain: authInfo.domain || 'atlas.azure.us'
             });
-            map.markers.add(marker);
-        });
-        });
+            
+            map.events.add('ready', function () {
+                var locations = [
+                    @foreach (var loc in Model)
+                    {
+                        @: { name: '@loc.Name', coordinates: [@loc.Longitude, @loc.Latitude] },
+                    }
+                ];
+                locations.forEach(function (loc) {
+                    var marker = new atlas.HtmlMarker({
+                        position: loc.coordinates,
+                        text: loc.name
+                    });
+                    map.markers.add(marker);
+                });
+            });
+        } catch (error) {
+            console.error('Error initializing map:', error);
+            document.getElementById('myMap').innerHTML = '<div class="alert alert-danger">Failed to load map: ' + error.message + '</div>';
+        }
+    }
+    
+    // Initialize the map
+    initializeMap();
 </script>
 
 <div class="text-center">

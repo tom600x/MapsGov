@@ -4,7 +4,8 @@ using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
- 
+using Azure.Core;
+using Azure.Identity;
 using System.Xml.Linq;
 
 namespace MapsGov.Controllers
@@ -17,17 +18,20 @@ namespace MapsGov.Controllers
     }
 
     public class MapController : Controller
-    {
-        private readonly IConfiguration _config;
+    {        private readonly IConfiguration _config;
         private readonly string? _azureMapsKey;
+        private readonly bool _useManagedIdentity;
+        private readonly string _azureMapsGovEndpoint;
+        private readonly string _azureMapsDomain;
 
         public MapController(IConfiguration config)
         {
             _config = config;
             _azureMapsKey = _config["AzureMaps:SubscriptionKey"];
-        }
-
-        public IActionResult Index()
+            _useManagedIdentity = _config.GetValue<bool>("AzureMaps:UseManagedIdentity");
+            _azureMapsGovEndpoint = _config["AzureMaps:GovEndpoint"] ?? "https://atlas.azure.us";
+            _azureMapsDomain = _config["AzureMaps:Domain"] ?? "atlas.azure.us";
+        }        public IActionResult Index()
         {
             // Mock locations
             var locations = new List<MapLocation>
@@ -36,7 +40,8 @@ namespace MapsGov.Controllers
                 new MapLocation { Name = "Redmond", Latitude = 47.673988, Longitude = -122.121513 },
                 new MapLocation { Name = "Bellevue", Latitude = 47.6101, Longitude = -122.2015 }
             };
-            ViewBag.AzureMapsKey = _azureMapsKey;
+            // No longer needed as we're using the API endpoint for authentication
+            // ViewBag.AzureMapsKey = _azureMapsKey;
             return View(locations);
         }
 
@@ -47,6 +52,59 @@ namespace MapsGov.Controllers
         public IActionResult Geocode()
         {
             return View();
+        }
+
+        /// <summary>
+        /// Endpoint to get Azure Maps authentication information
+        /// Uses Managed Identity when deployed to Azure and configured, otherwise falls back to subscription key
+        /// </summary>
+        [HttpGet]
+        [Route("api/maps/auth")]
+        public async Task<IActionResult> GetMapsAuth()
+        {
+            // If not using managed identity, return the subscription key
+            if (!_useManagedIdentity)
+            {
+                return Json(new 
+                { 
+                    authType = "subscriptionKey",
+                    subscriptionKey = _azureMapsKey,
+                    domain = _azureMapsDomain
+                });
+            }
+
+            try
+            {
+                // Create DefaultAzureCredential with Azure Government authority host
+                var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+                {
+                    AuthorityHost = AzureAuthorityHosts.AzureGovernment
+                });
+
+                // Get token for Azure Maps in Azure Government
+                var token = await credential.GetTokenAsync(
+                    new TokenRequestContext(new[] { $"{_azureMapsGovEndpoint}/.default" }));
+
+                return Json(new 
+                { 
+                    authType = "aad", 
+                    token = token.Token,
+                    domain = _azureMapsDomain,
+                    expiresOn = token.ExpiresOn
+                });
+            }
+            catch (Exception ex)
+            {
+                // Log the exception (in a production app)
+                // Fall back to subscription key if managed identity fails
+                return Json(new 
+                { 
+                    authType = "subscriptionKey",
+                    subscriptionKey = _azureMapsKey,
+                    domain = _azureMapsDomain,
+                    error = ex.Message
+                });
+            }
         }
 
         // Handle geocode form submission
