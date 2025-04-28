@@ -83,7 +83,11 @@ namespace MapsGov.Controllers
 
                 // Get token for Azure Maps in Azure Government
                 var token = await credential.GetTokenAsync(
-                    new TokenRequestContext(new[] { $"{_azureMapsGovEndpoint}/.default" }));
+                    new TokenRequestContext(new[] { $"https://atlas.microsoft.com/.default" }));
+
+    //            var token = await credential.GetTokenAsync(
+    //new TokenRequestContext(new[] { $"{_azureMapsGovEndpoint}/.default" }));
+                // 
 
                 return Json(new 
                 { 
@@ -105,9 +109,7 @@ namespace MapsGov.Controllers
                     error = ex.Message
                 });
             }
-        }
-
-        // Handle geocode form submission
+        }        // Handle geocode form submission
         [HttpPost]
         public async Task<IActionResult> Geocode(string address)
         {
@@ -116,13 +118,88 @@ namespace MapsGov.Controllers
                 ViewBag.Error = "Please enter an address.";
                 return View();
             }
-            var url = $"https://atlas.azure.us/search/address/json?api-version=1.0&subscription-key={_azureMapsKey}&query={System.Net.WebUtility.UrlEncode(address)}";
-            using var client = new HttpClient();
-            var response = await client.GetStringAsync(url);
-            var json = JObject.Parse(response);
-            ViewBag.Result = json;
-            ViewBag.Address = address;
-            return View();
+
+            try
+            {
+                string response;
+                JObject json;
+                using var client = new HttpClient();
+
+                // Check if we should use managed identity or subscription key
+                if (_useManagedIdentity)
+                {
+                    //try
+                    //{
+                    //    var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+                    //    {
+                    //        AuthorityHost = AzureAuthorityHosts.AzureGovernment
+                    //    });
+                    //    var token1 = await credential.GetTokenAsync(new TokenRequestContext(new[] { "https://management.core.usgovcloudapi.net/.default" }));
+                    //    ViewBag.AuthError = "SUCCESS: " + token1.Token.Substring(0, 60) + "...";
+                    //}
+                    //catch (Exception ex)
+                    //{
+                    //    ViewBag.AuthError = "FAIL: " + ex.ToString();
+                    //}
+                    //return View();
+                    AccessToken token = default;
+                    try
+                    {  
+                        // Create DefaultAzureCredential with Azure Government authority host
+                        var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+                        {
+                            AuthorityHost = AzureAuthorityHosts.AzureGovernment
+                        });
+
+                        // Get token for Azure Maps in Azure Government
+                          token = await credential.GetTokenAsync(
+                            new TokenRequestContext(new[] { @"https://atlas.microsoft.com/.default" }));
+ 
+
+                        //        ViewBag.AuthError = $"Token: {token.Token}";
+                        //        return View();
+                        // Use the token for authentication
+                        var url = $"https://atlas.azure.us/search/address/json?api-version=1.0&query={System.Net.WebUtility.UrlEncode(address)}";
+                        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token.Token);
+                        client.DefaultRequestHeaders.Add("x-ms-client-id", "8b481c0e-579d-4170-ae92-8ce8218c372d");
+                        response = await client.GetStringAsync(url);
+                    }
+                    catch (Exception ex)
+                    {
+                        ViewBag.AuthError = $"Managed identity authentication failed: {ex.Message} {token.Token}";
+                        
+                        // Fall back to subscription key if managed identity fails
+                        if (!string.IsNullOrEmpty(_azureMapsKey))
+                        {
+                            ViewBag.FallbackInfo = "Falling back to subscription key authentication.";
+                            var fallbackUrl = $"{_azureMapsGovEndpoint}/search/address/json?api-version=1.0&subscription-key={_azureMapsKey}&query={System.Net.WebUtility.UrlEncode(address)}";
+                            response = await client.GetStringAsync(fallbackUrl);
+                        }
+                        else
+                        {
+                            ViewBag.Error = "Authentication failed and no subscription key fallback is available.";
+                            return View();
+                        }
+                    }
+                }
+                else
+                {
+                    // Use subscription key authentication
+                    var url = $"{_azureMapsGovEndpoint}/search/address/json?api-version=1.0&subscription-key={_azureMapsKey}&query={System.Net.WebUtility.UrlEncode(address)}";
+                    response = await client.GetStringAsync(url);
+                }
+
+                json = JObject.Parse(response);
+                ViewBag.Result = json;
+                ViewBag.Address = address;
+                return View();
+            }
+            catch (Exception ex)
+            {
+                ViewBag.Error = $"Error performing geocode: {ex.Message}";
+                ViewBag.Address = address;
+                return View();
+            }
         }
 
         // In-memory storage for demo pin location

@@ -11,7 +11,19 @@
 </form>
 @if (ViewBag.Error != null)
 {
-    <div style="color: red;">@ViewBag.Error</div>
+    <div style="color: red; margin: 10px 0;">@ViewBag.Error</div>
+}
+@if (ViewBag.AuthError != null)
+{
+    <div style="color: orange; margin: 10px 0;">
+        <strong>Authentication Warning:</strong> @ViewBag.AuthError
+    </div>
+}
+@if (ViewBag.FallbackInfo != null)
+{
+    <div style="color: blue; margin: 10px 0;">
+        <strong>Info:</strong> @ViewBag.FallbackInfo
+    </div>
 }
 @if (ViewBag.Result != null)
 {

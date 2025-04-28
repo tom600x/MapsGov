@@ -20,35 +20,59 @@
     async function initializeMap() {
         try {
             // Fetch authentication info from our endpoint
-            const response = await fetch('/api/maps/auth');
-            if (!response.ok) {
-                throw new Error('Failed to get map authentication');
+            // const response = await fetch('/api/maps/auth');
+            // if (!response.ok) {
+            //     throw new Error('Failed to get map authentication');
+            // }
+            
+            // const authInfo = await response.json();
+            // let authOptions;
+            
+            // // Configure auth options based on response type
+            // if (authInfo.authType === 'aad') {
+            //     authOptions = {
+            //         authType: 'anonymous',
+            //         getToken: () => Promise.resolve(authInfo.token),
+            //         clientId: "8b481c0e-579d-4170-ae92-8ce8218c372d"
+            //     };
+            //     console.log('Using AAD token authentication');
+            // } else {
+            //     authOptions = {
+            //         authType: 'subscriptionKey',
+            //         subscriptionKey: authInfo.subscriptionKey
+            //     };
+            //     console.log('Using subscription key authentication');
+            // }
+            
+
+            // Add authentication details for connecting to Azure Maps
+            authOptions = {
+                // Use Azure Active Directory authentication in production
+                authType: 'anonymous',
+                // Your Azure Maps client id for accessing your Azure Maps account
+                clientId: '8b481c0e-579d-4170-ae92-8ce8218c372d',
+                getToken: function (resolve, reject, map) {
+                    // URL to your authentication service that retrieves an Azure Active Directory Token
+                    fetch('/api/maps/auth')
+                        .then(function (response) {
+                            // return token from json response
+                                 return response.json();
+                        })
+                        .then(function (body) {
+                            resolve(body.token);
+                        })
+                        .catch(function (error) {
+                            reject(new Error(`Failed to fetch Azure Maps token: ${error.message}`));
+                        });
+                }
             }
-            
-            const authInfo = await response.json();
-            let authOptions;
-            
-            // Configure auth options based on response type
-            if (authInfo.authType === 'aad') {
-                authOptions = {
-                    authType: 'anonymous',
-                    getToken: () => Promise.resolve(authInfo.token)
-                };
-                console.log('Using AAD token authentication');
-            } else {
-                authOptions = {
-                    authType: 'subscriptionKey',
-                    subscriptionKey: authInfo.subscriptionKey
-                };
-                console.log('Using subscription key authentication');
-            }
-            
+
             // Initialize the map with the acquired auth options
             var map = new atlas.Map('myMap', {
                 center: [@Model.First().Longitude, @Model.First().Latitude],
                 zoom: 10,
                 authOptions: authOptions,
-                domain: authInfo.domain || 'atlas.azure.us'
+                domain: 'atlas.azure.us'
             });
             
             map.events.add('ready', function () {
