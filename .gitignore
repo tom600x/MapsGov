@@ -39,3 +39,5 @@ wwwroot/dist/
 
 # Local secrets
 secrets.json
+/.vs/MapsGov
+/Properties/PublishProfiles
